@@ -10,8 +10,8 @@ import './styles.css';
 export const AppContext = createContext(null);
 export const useApp = () => useContext(AppContext);
 
-// ─── PEGÁ TU GEMINI API KEY AQUÍ ─────────────────────────────────────────────
-const GEMINI_API_KEY = 'PEGAR_TU_API_KEY_AQUI';
+// ─── PROXY URL (key segura en Render, nunca expuesta) ────────────────────────
+const PROXY_URL = 'https://florecer-proxy.onrender.com/coach';
 // ─────────────────────────────────────────────────────────────────────────────
 
 const WELLBEING_MAP = {
@@ -150,7 +150,7 @@ export default function App() {
   );
 }
 
-// ─── GEMINI API CALL ──────────────────────────────────────────────────────────
+// ─── PROXY CALL (Gemini key segura en Render) ─────────────────────────────────
 async function fetchGeminiCoach(mood, label, moodText, profile, history) {
   const recentHistory = history.slice(-7)
     .map(h => `${h.date}: ${h.label} (bienestar ${h.wellbeing}%)`)
@@ -179,20 +179,11 @@ Responde SOLO con un JSON con esta estructura exacta (sin backticks, sin texto e
   "pattern": "insight detectado basado en el historial, o motivación genuina si es la primera vez"
 }`;
 
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.8,
-          maxOutputTokens: 1000,
-        }
-      })
-    }
-  );
+  const resp = await fetch(PROXY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
 
   const data = await resp.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
