@@ -10,6 +10,10 @@ import './styles.css';
 export const AppContext = createContext(null);
 export const useApp = () => useContext(AppContext);
 
+// ─── PEGÁ TU GEMINI API KEY AQUÍ ─────────────────────────────────────────────
+const GEMINI_API_KEY = 'PEGAR_TU_API_KEY_AQUI';
+// ─────────────────────────────────────────────────────────────────────────────
+
 const WELLBEING_MAP = {
   '😴': 28, '😣': 35, '🌡': 40, '😔': 30, '😌': 62, '⚡': 78, '✍️': 50
 };
@@ -56,17 +60,12 @@ export default function App() {
   });
 
   const [moodText, setMoodText] = useState('');
-
   const [history, setHistory] = useState(saved?.history || []);
-
   const [nightClosed, setNightClosed] = useState(saved?.nightClosed || false);
-
   const [badges, setBadges] = useState(saved?.badges || INITIAL_BADGES);
-
   const [aiResponse, setAiResponse] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
 
-  // Persist to localStorage on state changes
   useEffect(() => {
     saveToStorage({ profile: userProfile, history, nightClosed, badges });
   }, [userProfile, history, nightClosed, badges]);
@@ -76,10 +75,15 @@ export default function App() {
     document.querySelector('.screen-container')?.scrollTo(0, 0);
   };
 
+  // ─── RESET COMPLETO ────────────────────────────────────────────────────────
+  const resetApp = () => {
+    localStorage.removeItem('florecer_v2');
+    window.location.reload();
+  };
+
   const submitCheckin = async (mood, label, text) => {
     const todayDate = new Date().toISOString().split('T')[0];
-    const moodData = { emoji: mood, label, text };
-    setTodayMood(moodData);
+    setTodayMood({ emoji: mood, label, text });
     setMoodText(text);
     setAiResponse(null);
     setAiLoading(true);
@@ -94,7 +98,6 @@ export default function App() {
     setHistory(prev => {
       const filtered = prev.filter(h => h.date !== todayDate);
       const updated = [...filtered, entry];
-      // Update badges based on history length
       setBadges(prev => prev.map(b => {
         if (b.id === 1 && updated.length >= 7) return { ...b, earned: true };
         if (b.id === 4 && updated.length >= 21) return { ...b, earned: true };
@@ -107,12 +110,11 @@ export default function App() {
 
     navigate('coach');
 
-    // Call Claude API for personalized response
     try {
-      const response = await fetchAICoach(mood, label, text, userProfile, history);
+      const response = await fetchGeminiCoach(mood, label, text, userProfile, history);
       setAiResponse(response);
     } catch (e) {
-      console.error('AI fetch error:', e);
+      console.error('Gemini error:', e);
     } finally {
       setAiLoading(false);
     }
@@ -130,6 +132,7 @@ export default function App() {
       nightClosed, setNightClosed,
       badges, setBadges,
       aiResponse, aiLoading,
+      resetApp,
     }}>
       <div className="app-shell">
         <div className="phone-frame">
@@ -147,8 +150,8 @@ export default function App() {
   );
 }
 
-// ─── Claude API call ───────────────────────────────────────────────────────────
-async function fetchAICoach(mood, label, moodText, profile, history) {
+// ─── GEMINI API CALL ──────────────────────────────────────────────────────────
+async function fetchGeminiCoach(mood, label, moodText, profile, history) {
   const recentHistory = history.slice(-7)
     .map(h => `${h.date}: ${h.label} (bienestar ${h.wellbeing}%)`)
     .join(', ');
@@ -176,18 +179,23 @@ Responde SOLO con un JSON con esta estructura exacta (sin backticks, sin texto e
   "pattern": "insight detectado basado en el historial, o motivación genuina si es la primera vez"
 }`;
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.8,
+          maxOutputTokens: 1000,
+        }
+      })
+    }
+  );
 
   const data = await resp.json();
-  const text = data.content?.find(c => c.type === 'text')?.text || '';
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   const cleaned = text.replace(/```json|```/g, '').trim();
   return JSON.parse(cleaned);
 }
