@@ -20,7 +20,7 @@ function getInsight(history) {
 }
 
 export default function Dashboard() {
-  const { navigate, history, todayMood, badges, userProfile } = useApp();
+  const { navigate, history, todayMood, badges, userProfile, resetApp } = useApp();
 
   const last7 = history.slice(-7);
   const maxWell = Math.max(...last7.map(h => h.wellbeing), 1);
@@ -32,6 +32,12 @@ export default function Dashboard() {
   const insight = getInsight(last7);
   const todayDate = new Date().toISOString().split('T')[0];
   const todayLabel = todayMood ? `${todayMood.emoji} ${todayMood.label}` : 'Sin registrar aún';
+
+  const handleReset = () => {
+    if (window.confirm('¿Segura que querés empezar de nuevo? Se borrará todo tu historial.')) {
+      resetApp();
+    }
+  };
 
   return (
     <div className="dash-wrap">
@@ -127,6 +133,29 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
+
+        {/* ─── RESET ─────────────────────────────────────────── */}
+        <button
+          onClick={handleReset}
+          style={{
+            width: '100%',
+            background: 'none',
+            border: '1px solid var(--border-gentle)',
+            borderRadius: 14,
+            padding: '12px',
+            fontSize: 13,
+            color: 'var(--text-hint)',
+            cursor: 'pointer',
+            marginTop: 24,
+            fontFamily: 'DM Sans, sans-serif',
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => e.target.style.color = 'var(--fuchsia)'}
+          onMouseLeave={e => e.target.style.color = 'var(--text-hint)'}
+        >
+          🔄 Empezar de nuevo
+        </button>
+
       </div>
     </div>
   );
