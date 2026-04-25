@@ -80,6 +80,15 @@ export default function App() {
     localStorage.removeItem('florecer_v2');
     window.location.reload();
   };
+  const resetHistoryOnly = () => {
+  setHistory([]);
+  setNightClosed(false);
+  setBadges(INITIAL_BADGES);
+  setTodayMood(null);
+  setMoodText('');
+  saveToStorage({ profile: userProfile, history: [], nightClosed: false, badges: INITIAL_BADGES });
+  navigate('checkin');
+};
 
   const submitCheckin = async (mood, label, text) => {
     const todayDate = new Date().toISOString().split('T')[0];
